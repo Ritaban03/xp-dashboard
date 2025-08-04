@@ -5,6 +5,7 @@ import TodoList from "@/components/todo-list";
 import ChallengeTimer from "@/components/challenge-timer";
 import AnalyticsDashboard from "@/components/analytics-dashboard";
 import UserProfile from "@/components/user-profile";
+import LeagueRequirements from "@/components/league-requirements";
 import { Star, Flame, Gamepad2 } from "lucide-react";
 
 export default function Dashboard() {
@@ -67,6 +68,11 @@ export default function Dashboard() {
             <ChallengeTimer />
             <AnalyticsDashboard />
           </div>
+        </div>
+
+        {/* League Requirements Section */}
+        <div className="mt-8">
+          <LeagueRequirements />
         </div>
       </div>
     </div>

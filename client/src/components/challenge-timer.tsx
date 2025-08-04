@@ -34,6 +34,7 @@ export default function ChallengeTimer() {
       const challengeConfig = CHALLENGE_TYPES[challengeType];
       const targets = { dm_sprint: 25, loom_marathon: 10, call_blitz: 8, content_storm: 5, system_builder: 3, sales_domination: 2, productivity_beast: 30 };
       const timeLimits = { dm_sprint: 3600, loom_marathon: 7200, call_blitz: 5400, content_storm: 10800, system_builder: 14400, sales_domination: 21600, productivity_beast: 1800 };
+      const bonusXP = { dm_sprint: 100, loom_marathon: 250, call_blitz: 200, content_storm: 150, system_builder: 300, sales_domination: 400, productivity_beast: 500 };
       
       const response = await apiRequest("POST", "/api/challenges", {
         userId: "default",
@@ -42,6 +43,8 @@ export default function ChallengeTimer() {
         current: 0,
         timeLimit: timeLimits[challengeType],
         timeRemaining: timeLimits[challengeType],
+        bonusXP: bonusXP[challengeType],
+        speedMultiplier: 100,
       });
       return response.json();
     },
@@ -195,6 +198,19 @@ export default function ChallengeTimer() {
       <div className="text-center">
         <h3 className="font-bold text-lg mb-2">{CHALLENGE_TYPES[challenge.type as keyof typeof CHALLENGE_TYPES]?.label || challenge.type}</h3>
         <p className="text-sm text-slate-400 mb-4">{CHALLENGE_TYPES[challenge.type as keyof typeof CHALLENGE_TYPES]?.description || "Complete the challenge!"}</p>
+        
+        {/* Bonus XP Info */}
+        <div className="bg-gradient-to-r from-yellow-900/30 to-orange-900/30 border border-yellow-700/50 rounded-lg p-3 mb-4">
+          <div className="flex items-center justify-center gap-2">
+            <Zap className="w-4 h-4 text-yellow-500" />
+            <span className="text-sm font-semibold text-yellow-400">
+              Bonus XP: +{challenge.bonusXP} • Speed Multiplier: {(challenge.speedMultiplier / 100).toFixed(1)}x
+            </span>
+          </div>
+          <div className="text-xs text-yellow-300 mt-1">
+            Complete faster for higher XP rewards!
+          </div>
+        </div>
         
         {/* Timer Display */}
         <div className="bg-slate-800 rounded-lg p-4 mb-4">

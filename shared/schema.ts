@@ -40,6 +40,8 @@ export const challenges = pgTable("challenges", {
   current: integer("current").notNull().default(0),
   timeLimit: integer("time_limit").notNull(), // in seconds
   timeRemaining: integer("time_remaining").notNull(),
+  bonusXP: integer("bonus_xp").notNull().default(0),
+  speedMultiplier: integer("speed_multiplier").notNull().default(100),
   active: boolean("active").notNull().default(false),
   completed: boolean("completed").notNull().default(false),
   startedAt: timestamp("started_at"),
@@ -79,6 +81,8 @@ export const insertChallengeSchema = createInsertSchema(challenges).omit({
   startedAt: true,
   completedAt: true,
   createdAt: true,
+  bonusXP: true,
+  speedMultiplier: true,
 });
 
 export const insertAchievementSchema = createInsertSchema(achievements).omit({

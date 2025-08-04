@@ -131,7 +131,9 @@ export class MemStorage implements IStorage {
   async createAction(insertAction: InsertAction): Promise<Action> {
     const action: Action = {
       id: randomUUID(),
-      ...insertAction,
+      userId: insertAction.userId || "default",
+      type: insertAction.type,
+      xpValue: insertAction.xpValue,
       timestamp: new Date(),
       date: this.getCurrentDate(),
     };
@@ -185,7 +187,9 @@ export class MemStorage implements IStorage {
   async createTodo(insertTodo: InsertTodo): Promise<Todo> {
     const todo: Todo = {
       id: randomUUID(),
-      ...insertTodo,
+      userId: insertTodo.userId || "default",
+      title: insertTodo.title,
+      xpValue: insertTodo.xpValue,
       completed: false,
       completedAt: null,
       createdAt: new Date(),
@@ -232,7 +236,14 @@ export class MemStorage implements IStorage {
   async createChallenge(insertChallenge: InsertChallenge): Promise<Challenge> {
     const challenge: Challenge = {
       id: randomUUID(),
-      ...insertChallenge,
+      userId: insertChallenge.userId || "default",
+      type: insertChallenge.type,
+      target: insertChallenge.target,
+      current: insertChallenge.current || 0,
+      timeLimit: insertChallenge.timeLimit,
+      timeRemaining: insertChallenge.timeRemaining,
+      bonusXP: 0,
+      speedMultiplier: 100,
       active: false,
       completed: false,
       startedAt: null,
@@ -272,7 +283,10 @@ export class MemStorage implements IStorage {
   async createAchievement(insertAchievement: InsertAchievement): Promise<Achievement> {
     const achievement: Achievement = {
       id: randomUUID(),
-      ...insertAchievement,
+      userId: insertAchievement.userId || "default",
+      type: insertAchievement.type,
+      title: insertAchievement.title,
+      description: insertAchievement.description,
       unlockedAt: new Date(),
     };
     
