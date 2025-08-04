@@ -102,11 +102,13 @@ export type InsertChallenge = z.infer<typeof insertChallengeSchema>;
 export type Achievement = typeof achievements.$inferSelect;
 export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
 
-// Level requirements
+// Level requirements - progressively challenging
 export const LEVEL_REQUIREMENTS = {
-  1: 0, 2: 100, 3: 250, 4: 450, 5: 700, 6: 1000, 7: 1350, 8: 1750, 9: 2200, 10: 2700,
-  11: 3250, 12: 3850, 13: 4500, 14: 5200, 15: 5950, 16: 6750, 17: 7600, 18: 8500, 19: 9450, 20: 10500,
-  21: 11600, 22: 12750, 23: 13950, 24: 15200, 25: 16500
+  1: 0, 2: 200, 3: 500, 4: 900, 5: 1400, 6: 2000, 7: 2700, 8: 3500, 9: 4400, 10: 5400,
+  11: 6500, 12: 7700, 13: 9000, 14: 10400, 15: 11900, 16: 13500, 17: 15200, 18: 17000, 19: 18900, 20: 21000,
+  21: 23200, 22: 25500, 23: 27900, 24: 30400, 25: 33000, 26: 35700, 27: 38500, 28: 41400, 29: 44400, 30: 47500,
+  31: 50700, 32: 54000, 33: 57400, 34: 60900, 35: 64500, 36: 68200, 37: 72000, 38: 75900, 39: 79900, 40: 84000,
+  41: 88200, 42: 92500, 43: 96900, 44: 101400, 45: 106000, 46: 110700, 47: 115500, 48: 120400, 49: 125400, 50: 130500
 };
 
 // Action XP values
@@ -122,3 +124,34 @@ export const ACTION_XP_VALUES = {
 // Action types
 export const ACTION_TYPES = ['dm', 'loom', 'call', 'client', 'content', 'system'] as const;
 export type ActionType = typeof ACTION_TYPES[number];
+
+// Challenge types
+export const CHALLENGE_TYPES = {
+  dm_sprint: { label: "DM Sprint", description: "Send as many DMs as possible", actionType: 'dm' as ActionType },
+  loom_marathon: { label: "Loom Marathon", description: "Create multiple Loom videos", actionType: 'loom' as ActionType },
+  call_blitz: { label: "Call Booking Blitz", description: "Book multiple calls", actionType: 'call' as ActionType },
+  content_storm: { label: "Content Creation Storm", description: "Write multiple pieces of content", actionType: 'content' as ActionType },
+  system_builder: { label: "System Builder Challenge", description: "Create multiple systems", actionType: 'system' as ActionType },
+  sales_domination: { label: "Sales Domination", description: "Close multiple clients", actionType: 'client' as ActionType },
+  productivity_beast: { label: "Productivity Beast", description: "Complete mixed actions", actionType: 'dm' as ActionType }
+} as const;
+
+// Leagues and titles based on level
+export const LEAGUES = {
+  rookie: { minLevel: 1, maxLevel: 5, title: "Rookie Hustler", color: "text-gray-400", badge: "🥉" },
+  bronze: { minLevel: 6, maxLevel: 10, title: "Bronze Grinder", color: "text-orange-600", badge: "🥉" },
+  silver: { minLevel: 11, maxLevel: 15, title: "Silver Performer", color: "text-gray-300", badge: "🥈" },
+  gold: { minLevel: 16, maxLevel: 25, title: "Gold Achiever", color: "text-yellow-500", badge: "🥇" },
+  platinum: { minLevel: 26, maxLevel: 35, title: "Platinum Elite", color: "text-blue-400", badge: "💎" },
+  diamond: { minLevel: 36, maxLevel: 45, title: "Diamond Legend", color: "text-cyan-400", badge: "💎" },
+  master: { minLevel: 46, maxLevel: 50, title: "Master Champion", color: "text-purple-500", badge: "👑" }
+};
+
+export function getLeague(level: number) {
+  for (const [key, league] of Object.entries(LEAGUES)) {
+    if (level >= league.minLevel && level <= league.maxLevel) {
+      return { key, ...league };
+    }
+  }
+  return { key: 'rookie', ...LEAGUES.rookie };
+}

@@ -1,6 +1,6 @@
 # Overview
 
-This is a gamified productivity dashboard that turns daily sales activities into an engaging RPG-style experience. Users earn XP and level up by completing actions like sending cold DMs, creating Loom videos, booking calls, closing clients, writing content, and building systems. The application features a modern interface with action buttons, progress tracking, todo management, timed challenges, and detailed analytics to motivate consistent daily activity.
+This is a comprehensive gamified productivity dashboard that transforms daily sales activities into an engaging RPG-style experience. Users earn XP and level up by completing actions like sending cold DMs, creating Loom videos, booking calls, closing clients, writing content, and building systems. The application features a modern dark gaming interface with animated action buttons, detailed progress tracking, custom todo management, multiple timed challenges, league/title system, user profiles with avatars, and extensive analytics to motivate consistent daily activity. Designed specifically for ADHD-friendly motivation with progressive level requirements and dopamine-addictive interactions.
 
 # User Preferences
 

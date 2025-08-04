@@ -4,6 +4,7 @@ import LevelProgress from "@/components/level-progress";
 import TodoList from "@/components/todo-list";
 import ChallengeTimer from "@/components/challenge-timer";
 import AnalyticsDashboard from "@/components/analytics-dashboard";
+import UserProfile from "@/components/user-profile";
 import { Star, Flame, Gamepad2 } from "lucide-react";
 
 export default function Dashboard() {
@@ -31,45 +32,12 @@ export default function Dashboard() {
         
         {/* Header Section */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-electric to-neon-purple bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold mb-6 bg-gradient-to-r from-electric to-neon-purple bg-clip-text text-transparent">
             Level Up Dashboard
           </h1>
-          <div className="flex flex-wrap gap-6 items-center">
-            {/* Current Level Display */}
-            <div className="bg-card-dark rounded-xl p-4 border border-slate-700">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-r from-electric to-neon-purple rounded-full flex items-center justify-center">
-                  <span className="text-xl font-bold">{gameState.currentLevel}</span>
-                </div>
-                <div>
-                  <p className="text-slate-400 text-sm">Current Level</p>
-                  <p className="font-semibold">Level {gameState.currentLevel}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Total XP */}
-            <div className="bg-card-dark rounded-xl p-4 border border-slate-700">
-              <div className="flex items-center gap-3">
-                <Star className="text-xp-gold text-2xl" />
-                <div>
-                  <p className="text-slate-400 text-sm">Total XP</p>
-                  <p className="font-bold text-xp-gold text-xl">{gameState.currentXP.toLocaleString()}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Today's Progress */}
-            <div className="bg-card-dark rounded-xl p-4 border border-slate-700">
-              <div className="flex items-center gap-3">
-                <Flame className="text-orange-500 text-2xl" />
-                <div>
-                  <p className="text-slate-400 text-sm">Today's XP</p>
-                  <p className="font-bold text-green-500 text-xl">{gameState.todayXP.toLocaleString()}</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          
+          {/* User Profile Section */}
+          <UserProfile gameState={gameState} />
         </div>
 
         {/* Main Dashboard Grid */}

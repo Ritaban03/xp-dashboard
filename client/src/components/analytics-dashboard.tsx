@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, TrendingUp, Activity } from "lucide-react";
+import { BarChart3, TrendingUp, Activity, Calendar, Clock, Target } from "lucide-react";
 
 export default function AnalyticsDashboard() {
   const { data: todayActions = [] } = useQuery({
@@ -56,26 +56,39 @@ export default function AnalyticsDashboard() {
 
   return (
     <>
-      {/* Quick Stats */}
+      {/* Detailed Today's Stats */}
       <div className="bg-card-dark rounded-xl p-6 border border-slate-700">
         <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-          <BarChart3 className="text-blue-500" />
-          Today's Stats
+          <Calendar className="text-blue-500" />
+          Today's Performance
         </h2>
         
-        <div className="space-y-4">
-          {Object.entries(todayStats).map(([type, stats]) => {
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="bg-slate-800 rounded-lg p-3 text-center">
+            <div className="text-2xl font-bold text-green-500">{todayActions.length}</div>
+            <div className="text-xs text-slate-400">Total Actions</div>
+          </div>
+          <div className="bg-slate-800 rounded-lg p-3 text-center">
+            <div className="text-2xl font-bold text-xp-gold">
+              {Object.values(todayStats).reduce((sum, stats: any) => sum + stats.xp, 0)}
+            </div>
+            <div className="text-xs text-slate-400">XP Earned</div>
+          </div>
+        </div>
+        
+        <div className="space-y-3">
+          {Object.entries(todayStats).map(([type, stats]: [string, any]) => {
             const config = actionConfig[type as keyof typeof actionConfig];
             if (!config) return null;
             
             return (
-              <div key={type} className="flex justify-between items-center">
+              <div key={type} className="flex justify-between items-center p-2 bg-slate-800 rounded">
                 <div className="flex items-center gap-2">
                   <Activity className={`w-4 h-4 ${config.color}`} />
                   <span className="text-sm">{config.label}</span>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold">{stats.count}</div>
+                  <div className="font-bold">{stats.count}x</div>
                   <div className="text-xs text-green-500">+{stats.xp} XP</div>
                 </div>
               </div>
@@ -84,9 +97,9 @@ export default function AnalyticsDashboard() {
           
           {Object.keys(todayStats).length === 0 && (
             <div className="text-center py-4 text-slate-400">
-              <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <Calendar className="w-8 h-8 mx-auto mb-2 opacity-50" />
               <p className="text-sm">No actions recorded today</p>
-              <p className="text-xs">Start taking actions to see your stats!</p>
+              <p className="text-xs">Start grinding to see your stats!</p>
             </div>
           )}
         </div>

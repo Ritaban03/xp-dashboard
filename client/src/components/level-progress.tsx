@@ -1,5 +1,5 @@
-import { type GameState, LEVEL_REQUIREMENTS } from "@shared/schema";
-import { TrendingUp } from "lucide-react";
+import { type GameState, LEVEL_REQUIREMENTS, getLeague } from "@shared/schema";
+import { TrendingUp, Target } from "lucide-react";
 
 interface LevelProgressProps {
   gameState: GameState;
@@ -10,23 +10,34 @@ export default function LevelProgress({ gameState }: LevelProgressProps) {
   const currentXP = gameState.currentXP;
   const nextLevel = currentLevel + 1;
   
-  const currentLevelXP = LEVEL_REQUIREMENTS[currentLevel] || 0;
-  const nextLevelXP = LEVEL_REQUIREMENTS[nextLevel] || currentXP + 1000;
+  const currentLevelXP = LEVEL_REQUIREMENTS[currentLevel as keyof typeof LEVEL_REQUIREMENTS] || 0;
+  const nextLevelXP = LEVEL_REQUIREMENTS[nextLevel as keyof typeof LEVEL_REQUIREMENTS] || currentXP + 1000;
   
   const progressXP = currentXP - currentLevelXP;
   const requiredXP = nextLevelXP - currentLevelXP;
   const progressPercent = Math.min((progressXP / requiredXP) * 100, 100);
   const remainingXP = nextLevelXP - currentXP;
 
-  const getLevelTitle = (level: number): string => {
-    if (level <= 2) return "Beginner";
-    if (level <= 5) return "Hustler";
-    if (level <= 8) return "Sales Pro";
-    if (level <= 10) return "Elite Closer";
-    if (level <= 15) return "Business Master";
-    if (level <= 20) return "Industry Legend";
-    return "Legendary Boss";
+  // Get upcoming level milestones
+  const getUpcomingMilestones = () => {
+    const milestones = [];
+    for (let i = 1; i <= 5; i++) {
+      const level = currentLevel + i;
+      if (LEVEL_REQUIREMENTS[level as keyof typeof LEVEL_REQUIREMENTS]) {
+        const league = getLeague(level);
+        milestones.push({
+          level,
+          xp: LEVEL_REQUIREMENTS[level as keyof typeof LEVEL_REQUIREMENTS],
+          title: league.title,
+          color: league.color,
+          badge: league.badge
+        });
+      }
+    }
+    return milestones;
   };
+
+  const milestones = getUpcomingMilestones();
 
   return (
     <div className="bg-card-dark rounded-xl p-6 border border-slate-700">
@@ -56,22 +67,32 @@ export default function LevelProgress({ gameState }: LevelProgressProps) {
         </p>
       </div>
 
-      {/* Level Milestones */}
-      <div className="grid md:grid-cols-3 gap-4">
-        <div className="text-center p-4 bg-slate-800 rounded-lg">
-          <div className="text-2xl font-bold text-green-500">{nextLevel}</div>
-          <div className="text-sm text-slate-400">Next Level</div>
-          <div className="text-xs text-slate-500">{getLevelTitle(nextLevel)}</div>
-        </div>
-        <div className="text-center p-4 bg-slate-800 rounded-lg">
-          <div className="text-2xl font-bold text-blue-500">{Math.min(currentLevel + 3, 25)}</div>
-          <div className="text-sm text-slate-400">Milestone</div>
-          <div className="text-xs text-slate-500">{getLevelTitle(Math.min(currentLevel + 3, 25))}</div>
-        </div>
-        <div className="text-center p-4 bg-slate-800 rounded-lg">
-          <div className="text-2xl font-bold text-purple-500">{Math.min(currentLevel + 8, 25)}</div>
-          <div className="text-sm text-slate-400">Major Goal</div>
-          <div className="text-xs text-slate-500">{getLevelTitle(Math.min(currentLevel + 8, 25))}</div>
+      {/* Upcoming Level Milestones */}
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Target className="text-orange-500" />
+          Upcoming Milestones
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {milestones.map((milestone, index) => (
+            <div key={milestone.level} className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-lg font-bold">Level {milestone.level}</span>
+                <span className="text-xl">{milestone.badge}</span>
+              </div>
+              <div className={`text-sm font-medium ${milestone.color} mb-1`}>
+                {milestone.title}
+              </div>
+              <div className="text-xs text-slate-400">
+                {milestone.xp.toLocaleString()} XP Required
+              </div>
+              {index === 0 && (
+                <div className="mt-2 text-xs text-green-400">
+                  {remainingXP.toLocaleString()} XP to go!
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </div>

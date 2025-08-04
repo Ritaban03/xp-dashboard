@@ -3,8 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Timer, Play, Pause, BarChart3 } from "lucide-react";
-import { type Challenge } from "@shared/schema";
+import { Timer, Play, Pause, BarChart3, Shuffle, Zap } from "lucide-react";
+import { type Challenge, CHALLENGE_TYPES } from "@shared/schema";
 
 export default function ChallengeTimer() {
   const { toast } = useToast();
@@ -30,22 +30,27 @@ export default function ChallengeTimer() {
   });
 
   const createChallengeMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (challengeType: keyof typeof CHALLENGE_TYPES) => {
+      const challengeConfig = CHALLENGE_TYPES[challengeType];
+      const targets = { dm_sprint: 25, loom_marathon: 10, call_blitz: 8, content_storm: 5, system_builder: 3, sales_domination: 2, productivity_beast: 30 };
+      const timeLimits = { dm_sprint: 3600, loom_marathon: 7200, call_blitz: 5400, content_storm: 10800, system_builder: 14400, sales_domination: 21600, productivity_beast: 1800 };
+      
       const response = await apiRequest("POST", "/api/challenges", {
         userId: "default",
-        type: "dm_sprint",
-        target: 20,
+        type: challengeType,
+        target: targets[challengeType],
         current: 0,
-        timeLimit: 3600, // 1 hour in seconds
-        timeRemaining: 3600,
+        timeLimit: timeLimits[challengeType],
+        timeRemaining: timeLimits[challengeType],
       });
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, challengeType) => {
       queryClient.invalidateQueries({ queryKey: ["/api/challenges", "active"] });
+      const challengeConfig = CHALLENGE_TYPES[challengeType];
       toast({
         title: "Challenge Created! 🚀",
-        description: "DM Sprint Challenge is ready to start!",
+        description: `${challengeConfig.label} is ready to start!`,
       });
     },
   });
@@ -113,12 +118,24 @@ export default function ChallengeTimer() {
 
   const getCurrentProgress = (): number => {
     if (!challenge) return 0;
-    const dmActions = todayActions.filter((action: any) => action.type === 'dm');
-    return dmActions.length;
+    const challengeConfig = CHALLENGE_TYPES[challenge.type as keyof typeof CHALLENGE_TYPES];
+    if (!challengeConfig) return 0;
+    
+    if (challenge.type === 'productivity_beast') {
+      return todayActions.length; // Count all actions for productivity beast
+    }
+    
+    const relevantActions = todayActions.filter((action: any) => action.type === challengeConfig.actionType);
+    return relevantActions.length;
   };
 
   const currentProgress = getCurrentProgress();
   const progressPercent = challenge ? (currentProgress / challenge.target) * 100 : 0;
+
+  const getRandomChallenge = (): keyof typeof CHALLENGE_TYPES => {
+    const challengeTypes = Object.keys(CHALLENGE_TYPES) as (keyof typeof CHALLENGE_TYPES)[];
+    return challengeTypes[Math.floor(Math.random() * challengeTypes.length)];
+  };
 
   if (!challenge) {
     return (
@@ -130,13 +147,39 @@ export default function ChallengeTimer() {
         
         <div className="text-center">
           <p className="text-slate-400 mb-4">No active challenge. Ready to push your limits?</p>
-          <Button 
-            onClick={() => createChallengeMutation.mutate()}
-            disabled={createChallengeMutation.isPending}
-            className="bg-orange-600 hover:bg-orange-700"
-          >
-            {createChallengeMutation.isPending ? "Creating..." : "Start DM Sprint"}
-          </Button>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Button 
+              onClick={() => createChallengeMutation.mutate('dm_sprint')}
+              disabled={createChallengeMutation.isPending}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              DM Sprint
+            </Button>
+            <Button 
+              onClick={() => createChallengeMutation.mutate('loom_marathon')}
+              disabled={createChallengeMutation.isPending}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              Loom Marathon
+            </Button>
+            <Button 
+              onClick={() => createChallengeMutation.mutate('productivity_beast')}
+              disabled={createChallengeMutation.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <Zap className="w-4 h-4 mr-1" />
+              Beast Mode
+            </Button>
+            <Button 
+              onClick={() => createChallengeMutation.mutate(getRandomChallenge())}
+              disabled={createChallengeMutation.isPending}
+              className="bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500"
+            >
+              <Shuffle className="w-4 h-4 mr-1" />
+              Random
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -150,8 +193,8 @@ export default function ChallengeTimer() {
       </h2>
       
       <div className="text-center">
-        <h3 className="font-bold text-lg mb-2">DM Sprint Challenge</h3>
-        <p className="text-sm text-slate-400 mb-4">How many DMs can you send in 1 hour?</p>
+        <h3 className="font-bold text-lg mb-2">{CHALLENGE_TYPES[challenge.type as keyof typeof CHALLENGE_TYPES]?.label || challenge.type}</h3>
+        <p className="text-sm text-slate-400 mb-4">{CHALLENGE_TYPES[challenge.type as keyof typeof CHALLENGE_TYPES]?.description || "Complete the challenge!"}</p>
         
         {/* Timer Display */}
         <div className="bg-slate-800 rounded-lg p-4 mb-4">
