@@ -58,6 +58,20 @@ export const achievements = pgTable("achievements", {
   unlockedAt: timestamp("unlocked_at").defaultNow(),
 });
 
+export const pomodoroSessions = pgTable("pomodoro_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().default("default"),
+  challengeType: text("challenge_type"),
+  startTime: timestamp("start_time").defaultNow(),
+  endTime: timestamp("end_time"),
+  duration: integer("duration").notNull(), // in seconds
+  actionsCompleted: integer("actions_completed").notNull().default(0),
+  xpEarned: integer("xp_earned").notNull().default(0),
+  bonusXp: integer("bonus_xp").notNull().default(0),
+  completed: boolean("completed").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertGameStateSchema = createInsertSchema(gameState).omit({
   id: true,
@@ -90,6 +104,13 @@ export const insertAchievementSchema = createInsertSchema(achievements).omit({
   unlockedAt: true,
 });
 
+export const insertPomodoroSessionSchema = createInsertSchema(pomodoroSessions).omit({
+  id: true,
+  startTime: true,
+  endTime: true,
+  createdAt: true,
+});
+
 // Types
 export type GameState = typeof gameState.$inferSelect;
 export type InsertGameState = z.infer<typeof insertGameStateSchema>;
@@ -105,6 +126,9 @@ export type InsertChallenge = z.infer<typeof insertChallengeSchema>;
 
 export type Achievement = typeof achievements.$inferSelect;
 export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
+
+export type PomodoroSession = typeof pomodoroSessions.$inferSelect;
+export type InsertPomodoroSession = z.infer<typeof insertPomodoroSessionSchema>;
 
 // Level requirements - progressively challenging
 export const LEVEL_REQUIREMENTS = {

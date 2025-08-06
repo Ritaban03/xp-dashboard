@@ -190,6 +190,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Start Pomodoro session
+  app.post("/api/pomodoro/start", async (req, res) => {
+    try {
+      const session = await storage.createPomodoroSession(req.body);
+      res.json(session);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to start pomodoro session" });
+    }
+  });
+
+  // End Pomodoro session
+  app.post("/api/pomodoro/:id/end", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { actionsCompleted, completed } = req.body;
+      const session = await storage.endPomodoroSession(id, actionsCompleted, completed);
+      res.json(session);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to end pomodoro session" });
+    }
+  });
+
+  // Get Pomodoro records
+  app.get("/api/pomodoro/records", async (req, res) => {
+    try {
+      const userId = req.query.userId as string || "default";
+      const records = await storage.getPomodoroRecords(userId);
+      res.json(records);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get pomodoro records" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

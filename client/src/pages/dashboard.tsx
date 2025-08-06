@@ -6,6 +6,7 @@ import ChallengeTimer from "@/components/challenge-timer";
 import AnalyticsDashboard from "@/components/analytics-dashboard";
 import UserProfile from "@/components/user-profile";
 import LeagueRequirements from "@/components/league-requirements";
+import StickyTimer from "@/components/sticky-timer";
 import { Star, Flame, Gamepad2 } from "lucide-react";
 
 export default function Dashboard() {
@@ -74,6 +75,9 @@ export default function Dashboard() {
         <div className="mt-8">
           <LeagueRequirements />
         </div>
+
+        {/* Sticky Timer */}
+        <StickyTimer />
       </div>
     </div>
   );

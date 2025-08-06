@@ -9,6 +9,8 @@ import {
   type InsertChallenge,
   type Achievement,
   type InsertAchievement,
+  type PomodoroSession,
+  type InsertPomodoroSession,
   LEVEL_REQUIREMENTS,
   ACTION_XP_VALUES,
   type ActionType
@@ -39,6 +41,11 @@ export interface IStorage {
   // Achievements
   createAchievement(achievement: InsertAchievement): Promise<Achievement>;
   getAchievements(userId?: string): Promise<Achievement[]>;
+  
+  // Pomodoro Sessions
+  createPomodoroSession(session: InsertPomodoroSession): Promise<PomodoroSession>;
+  endPomodoroSession(id: string, actionsCompleted: number, completed: boolean): Promise<PomodoroSession>;
+  getPomodoroRecords(userId?: string): Promise<PomodoroSession[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -47,6 +54,7 @@ export class MemStorage implements IStorage {
   private todos: Map<string, Todo>;
   private challenges: Map<string, Challenge>;
   private achievements: Map<string, Achievement>;
+  private pomodoroSessions: Map<string, PomodoroSession>;
 
   constructor() {
     this.gameStates = new Map();
@@ -54,6 +62,7 @@ export class MemStorage implements IStorage {
     this.todos = new Map();
     this.challenges = new Map();
     this.achievements = new Map();
+    this.pomodoroSessions = new Map();
     
     // Initialize default game state
     this.initializeDefaultGameState();
@@ -298,6 +307,79 @@ export class MemStorage implements IStorage {
     return Array.from(this.achievements.values()).filter(
       achievement => achievement.userId === userId
     );
+  }
+
+  async createPomodoroSession(insertSession: InsertPomodoroSession): Promise<PomodoroSession> {
+    const session: PomodoroSession = {
+      id: randomUUID(),
+      userId: insertSession.userId || "default",
+      challengeType: insertSession.challengeType,
+      startTime: new Date(),
+      endTime: null,
+      duration: insertSession.duration,
+      actionsCompleted: insertSession.actionsCompleted || 0,
+      xpEarned: 0,
+      bonusXp: 0,
+      completed: false,
+      createdAt: new Date(),
+    };
+    
+    this.pomodoroSessions.set(session.id, session);
+    return session;
+  }
+
+  async endPomodoroSession(id: string, actionsCompleted: number, completed: boolean): Promise<PomodoroSession> {
+    const session = this.pomodoroSessions.get(id);
+    if (!session) {
+      throw new Error("Pomodoro session not found");
+    }
+
+    // Calculate XP and bonus based on performance
+    const baseXP = actionsCompleted * 5; // 5 XP per action during focus session
+    let bonusXP = 0;
+
+    // Get previous records for this challenge type to calculate bonus
+    const previousRecords = Array.from(this.pomodoroSessions.values())
+      .filter(s => s.userId === session.userId && s.challengeType === session.challengeType && s.completed)
+      .sort((a, b) => b.actionsCompleted - a.actionsCompleted);
+
+    if (previousRecords.length > 0) {
+      const bestRecord = previousRecords[0];
+      if (actionsCompleted > bestRecord.actionsCompleted) {
+        bonusXP = 50 + (actionsCompleted - bestRecord.actionsCompleted) * 10; // New record bonus
+      } else if (completed && actionsCompleted >= bestRecord.actionsCompleted * 0.8) {
+        bonusXP = 25; // Good performance bonus
+      }
+    } else if (completed && actionsCompleted > 0) {
+      bonusXP = 30; // First time completion bonus
+    }
+
+    const updatedSession: PomodoroSession = {
+      ...session,
+      endTime: new Date(),
+      actionsCompleted,
+      xpEarned: baseXP,
+      bonusXp: bonusXP,
+      completed,
+    };
+
+    // Add XP to game state
+    if (baseXP + bonusXP > 0) {
+      const gameState = await this.getGameState(session.userId);
+      await this.updateGameState({
+        currentXP: gameState.currentXP + baseXP + bonusXP,
+        todayXP: gameState.todayXP + baseXP + bonusXP,
+      }, session.userId);
+    }
+
+    this.pomodoroSessions.set(id, updatedSession);
+    return updatedSession;
+  }
+
+  async getPomodoroRecords(userId = "default"): Promise<PomodoroSession[]> {
+    return Array.from(this.pomodoroSessions.values())
+      .filter(session => session.userId === userId)
+      .sort((a, b) => b.createdAt!.getTime() - a.createdAt!.getTime());
   }
 }
 
