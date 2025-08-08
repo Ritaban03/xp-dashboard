@@ -1,0 +1,655 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gamified Productivity Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'game-primary': '#6366F1',
+                        'game-secondary': '#8B5CF6',
+                        'game-success': '#10B981',
+                        'game-warning': '#F59E0B',
+                        'game-danger': '#EF4444',
+                        'game-info': '#06B6D4',
+                    },
+                    animation: {
+                        'bounce-gentle': 'bounce 0.5s ease-in-out',
+                        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'shake': 'shake 0.5s ease-in-out',
+                        'level-up': 'levelUp 1s ease-out',
+                        'xp-gain': 'xpGain 0.8s ease-out',
+                    },
+                    keyframes: {
+                        shake: {
+                            '0%, 100%': { transform: 'translateX(0)' },
+                            '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-2px)' },
+                            '20%, 40%, 60%, 80%': { transform: 'translateX(2px)' },
+                        },
+                        levelUp: {
+                            '0%': { transform: 'scale(1)', opacity: '1' },
+                            '50%': { transform: 'scale(1.2)', opacity: '0.8' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        },
+                        xpGain: {
+                            '0%': { transform: 'translateY(0) scale(1)', opacity: '1' },
+                            '50%': { transform: 'translateY(-20px) scale(1.2)', opacity: '1' },
+                            '100%': { transform: 'translateY(-40px) scale(0.8)', opacity: '0' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glow-effect {
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+        }
+        .xp-particle {
+            position: absolute;
+            font-weight: bold;
+            color: #10B981;
+            pointer-events: none;
+            animation: xpGain 0.8s ease-out forwards;
+        }
+        .level-up-effect {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-50 font-inter min-h-screen">
+    <!-- @COMPONENT: GameDashboard [main container] -->
+    <div class="container mx-auto px-4 py-6 max-w-7xl">
+        
+        <!-- Header Section -->
+        <!-- @COMPONENT: DashboardHeader [user level and progress] -->
+        <div class="mb-8">
+            <div class="bg-slate-800 rounded-2xl p-6 shadow-xl border border-slate-700">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                    <div class="flex items-center gap-4">
+                        <div class="w-16 h-16 bg-gradient-to-br from-game-primary to-game-secondary rounded-xl flex items-center justify-center text-2xl font-bold">
+                            <!-- Gaming avatar placeholder -->
+                            <i class="fas fa-user-astronaut"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-3xl font-bold bg-gradient-to-r from-game-primary to-game-secondary bg-clip-text text-transparent">
+                                <span data-bind="user.name">Productivity Warrior</span>
+                            </h1>
+                            <p class="text-slate-400">Level <span data-bind="user.level" class="text-game-success font-semibold">12</span> • <span data-bind="user.totalXP" class="text-game-warning">2,847</span> Total XP</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Current Level Progress -->
+                    <div class="w-full lg:w-96">
+                        <div class="flex justify-between text-sm mb-2">
+                            <span>Level 12</span>
+                            <span><span data-bind="user.currentLevelXP">247</span> / <span data-bind="user.nextLevelXP">500</span> XP</span>
+                        </div>
+                        <div class="w-full bg-slate-700 rounded-full h-4 overflow-hidden">
+                            <div class="bg-gradient-to-r from-game-success to-game-info h-full rounded-full transition-all duration-500 ease-out" 
+                                 style="width: 49.4%" data-bind="progressPercentage"></div>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">253 XP to next level</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: DashboardHeader -->
+
+        <!-- Main Dashboard Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Left Column: Action Buttons & Quick Stats -->
+            <div class="lg:col-span-1 space-y-6">
+                
+                <!-- Action Buttons -->
+                <!-- @COMPONENT: ActionButtons [dopamine-addictive buttons] -->
+                <div class="bg-slate-800 rounded-2xl p-6 shadow-xl border border-slate-700">
+                    <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                        <i class="fas fa-bolt text-game-warning"></i>
+                        Power Actions
+                    </h2>
+                    
+                    <!-- Cold DM Button -->
+                    <button id="dmButton" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-4 px-6 rounded-xl mb-4 transform transition-all duration-150 hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl relative overflow-hidden group"
+                            data-event="click:sendDM" data-implementation="Track DM action and award XP">
+                        <div class="absolute inset-0 bg-gradient-to-r from-blue-400 to-blue-500 opacity-0 group-hover:opacity-20 transition-opacity"></div>
+                        <div class="relative flex items-center justify-center gap-3">
+                            <i class="fas fa-paper-plane text-xl"></i>
+                            <div>
+                                <div class="text-lg">Send Cold DM</div>
+                                <div class="text-sm opacity-80">+3-5 XP</div>
+                            </div>
+                        </div>
+                    </button>
+                    
+                    <!-- Loom Button -->
+                    <button id="loomButton" class="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white font-bold py-4 px-6 rounded-xl transform transition-all duration-150 hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl relative overflow-hidden group"
+                            data-event="click:sendLoom" data-implementation="Track Loom action and award XP">
+                        <div class="absolute inset-0 bg-gradient-to-r from-purple-400 to-purple-500 opacity-0 group-hover:opacity-20 transition-opacity"></div>
+                        <div class="relative flex items-center justify-center gap-3">
+                            <i class="fas fa-video text-xl"></i>
+                            <div>
+                                <div class="text-lg">Send Loom</div>
+                                <div class="text-sm opacity-80">+10-20 XP</div>
+                            </div>
+                        </div>
+                    </button>
+                </div>
+                <!-- @END_COMPONENT: ActionButtons -->
+                
+                <!-- Quick Stats -->
+                <!-- @COMPONENT: QuickStats [today's performance] -->
+                <div class="bg-slate-800 rounded-2xl p-6 shadow-xl border border-slate-700">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-chart-line text-game-success"></i>
+                        Today's Progress
+                    </h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <span class="flex items-center gap-2">
+                                <i class="fas fa-paper-plane text-blue-400"></i>
+                                Cold DMs
+                            </span>
+                            <span class="font-bold text-blue-400" data-bind="stats.todayDMs">23</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="flex items-center gap-2">
+                                <i class="fas fa-video text-purple-400"></i>
+                                Looms Sent
+                            </span>
+                            <span class="font-bold text-purple-400" data-bind="stats.todayLooms">7</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="flex items-center gap-2">
+                                <i class="fas fa-star text-game-warning"></i>
+                                XP Earned
+                            </span>
+                            <span class="font-bold text-game-warning" data-bind="stats.todayXP">209</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- @END_COMPONENT: QuickStats -->
+                
+                <!-- Current Challenges -->
+                <!-- @COMPONENT: ActiveChallenges [time-based challenges] -->
+                <div class="bg-slate-800 rounded-2xl p-6 shadow-xl border border-slate-700">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-trophy text-game-warning"></i>
+                        Active Challenges
+                    </h3>
+                    
+                    <!-- @MAP: activeChallenges.map(challenge => ( -->
+                    <div class="space-y-3">
+                        <div class="bg-slate-700 rounded-lg p-4 border-l-4 border-game-info">
+                            <div class="flex justify-between items-start mb-2">
+                                <h4 class="font-medium text-sm">DMs per Hour Challenge</h4>
+                                <span class="text-xs bg-game-info px-2 py-1 rounded-full">Active</span>
+                            </div>
+                            <p class="text-xs text-slate-400 mb-2">Send 15 DMs in 1 hour</p>
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm font-bold" data-bind="challenge.progress">8</span>
+                                    <span class="text-xs text-slate-400">/ 15</span>
+                                </div>
+                                <span class="text-xs text-game-warning" data-bind="challenge.timeLeft">23:45</span>
+                            </div>
+                            <div class="w-full bg-slate-600 rounded-full h-2 mt-2">
+                                <div class="bg-game-info h-2 rounded-full" style="width: 53.3%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-slate-700 rounded-lg p-4 border-l-4 border-purple-500">
+                            <div class="flex justify-between items-start mb-2">
+                                <h4 class="font-medium text-sm">Loom Streak</h4>
+                                <span class="text-xs bg-purple-500 px-2 py-1 rounded-full">Active</span>
+                            </div>
+                            <p class="text-xs text-slate-400 mb-2">Send 1 Loom daily for 7 days</p>
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm font-bold" data-bind="challenge.streak">4</span>
+                                    <span class="text-xs text-slate-400">/ 7 days</span>
+                                </div>
+                                <span class="text-xs text-purple-400">+100 XP</span>
+                            </div>
+                            <div class="w-full bg-slate-600 rounded-full h-2 mt-2">
+                                <div class="bg-purple-500 h-2 rounded-full" style="width: 57.1%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- @END_MAP )) -->
+                </div>
+                <!-- @END_COMPONENT: ActiveChallenges -->
+            </div>
+            
+            <!-- Right Column: Analytics & Progress -->
+            <div class="lg:col-span-2 space-y-6">
+                
+                <!-- Progress Analytics Charts -->
+                <!-- @COMPONENT: AnalyticsCharts [progress visualization] -->
+                <div class="bg-slate-800 rounded-2xl p-6 shadow-xl border border-slate-700">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                        <h2 class="text-xl font-bold flex items-center gap-2">
+                            <i class="fas fa-chart-bar text-game-success"></i>
+                            Progress Analytics
+                        </h2>
+                        <div class="flex gap-2">
+                            <button class="px-3 py-1 text-xs bg-game-primary rounded-lg text-white">7D</button>
+                            <button class="px-3 py-1 text-xs bg-slate-700 rounded-lg">30D</button>
+                            <button class="px-3 py-1 text-xs bg-slate-700 rounded-lg">90D</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Chart Container -->
+                    <div class="relative h-64 mb-6">
+                        <canvas id="progressChart" width="400" height="200"></canvas>
+                    </div>
+                    
+                    <!-- Stats Grid -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-slate-700 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-blue-400" data-bind="stats.weeklyDMs">156</div>
+                            <div class="text-xs text-slate-400">Weekly DMs</div>
+                        </div>
+                        <div class="bg-slate-700 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-purple-400" data-bind="stats.weeklyLooms">42</div>
+                            <div class="text-xs text-slate-400">Weekly Looms</div>
+                        </div>
+                        <div class="bg-slate-700 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-game-warning" data-bind="stats.weeklyXP">1,247</div>
+                            <div class="text-xs text-slate-400">Weekly XP</div>
+                        </div>
+                        <div class="bg-slate-700 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-game-success" data-bind="stats.avgPerDay">24.3</div>
+                            <div class="text-xs text-slate-400">Avg/Day</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- @END_COMPONENT: AnalyticsCharts -->
+                
+                <!-- Level Progression & Achievements -->
+                <!-- @COMPONENT: LevelProgression [level system visualization] -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- Level Progression -->
+                    <div class="bg-slate-800 rounded-2xl p-6 shadow-xl border border-slate-700">
+                        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <i class="fas fa-layer-group text-game-primary"></i>
+                            Level Progression
+                        </h3>
+                        
+                        <div class="space-y-3">
+                            <!-- @MAP: levels.map(level => ( -->
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-game-success flex items-center justify-center text-sm font-bold">
+                                    12
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span>Current Level</span>
+                                        <span>247/500 XP</span>
+                                    </div>
+                                    <div class="w-full bg-slate-700 rounded-full h-2">
+                                        <div class="bg-game-success h-2 rounded-full" style="width: 49.4%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center gap-3 opacity-60">
+                                <div class="w-8 h-8 rounded-lg bg-slate-600 flex items-center justify-center text-sm font-bold">
+                                    13
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span>Next Level</span>
+                                        <span>0/750 XP</span>
+                                    </div>
+                                    <div class="w-full bg-slate-700 rounded-full h-2">
+                                        <div class="bg-slate-600 h-2 rounded-full" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center gap-3 opacity-40">
+                                <div class="w-8 h-8 rounded-lg bg-slate-600 flex items-center justify-center text-sm font-bold">
+                                    14
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span>Level 14</span>
+                                        <span>0/1000 XP</span>
+                                    </div>
+                                    <div class="w-full bg-slate-700 rounded-full h-2">
+                                        <div class="bg-slate-600 h-2 rounded-full" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- @END_MAP )) -->
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Achievements -->
+                    <div class="bg-slate-800 rounded-2xl p-6 shadow-xl border border-slate-700">
+                        <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <i class="fas fa-medal text-game-warning"></i>
+                            Recent Achievements
+                        </h3>
+                        
+                        <div class="space-y-3">
+                            <!-- @MAP: achievements.map(achievement => ( -->
+                            <div class="flex items-center gap-3 bg-slate-700 rounded-lg p-3">
+                                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-game-warning to-yellow-600 flex items-center justify-center">
+                                    <i class="fas fa-fire text-white"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="font-medium text-sm">DM Streak Master</h4>
+                                    <p class="text-xs text-slate-400">Sent DMs for 5 days straight</p>
+                                </div>
+                                <span class="text-xs text-game-warning font-bold">+50 XP</span>
+                            </div>
+                            
+                            <div class="flex items-center gap-3 bg-slate-700 rounded-lg p-3">
+                                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                                    <i class="fas fa-video text-white"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="font-medium text-sm">Loom Legend</h4>
+                                    <p class="text-xs text-slate-400">Created 10 Looms in one day</p>
+                                </div>
+                                <span class="text-xs text-game-warning font-bold">+100 XP</span>
+                            </div>
+                            
+                            <div class="flex items-center gap-3 bg-slate-700 rounded-lg p-3">
+                                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-game-success to-green-600 flex items-center justify-center">
+                                    <i class="fas fa-level-up-alt text-white"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="font-medium text-sm">Level Up!</h4>
+                                    <p class="text-xs text-slate-400">Reached Level 12</p>
+                                </div>
+                                <span class="text-xs text-game-warning font-bold">+200 XP</span>
+                            </div>
+                            <!-- @END_MAP )) -->
+                        </div>
+                    </div>
+                </div>
+                <!-- @END_COMPONENT: LevelProgression -->
+            </div>
+        </div>
+        
+        <!-- Speed Analytics Section -->
+        <!-- @COMPONENT: SpeedAnalytics [performance metrics] -->
+        <div class="mt-6 bg-slate-800 rounded-2xl p-6 shadow-xl border border-slate-700">
+            <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+                <i class="fas fa-tachometer-alt text-game-info"></i>
+                Speed & Performance Analytics
+            </h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Actions per Hour Chart -->
+                <div>
+                    <h3 class="text-sm font-medium mb-3 text-slate-300">Actions per Hour Today</h3>
+                    <div class="relative h-48">
+                        <canvas id="speedChart" width="400" height="192"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Performance Metrics -->
+                <div>
+                    <h3 class="text-sm font-medium mb-3 text-slate-300">Performance Metrics</h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center p-3 bg-slate-700 rounded-lg">
+                            <span class="text-sm">Best Hour Today</span>
+                            <span class="font-bold text-game-success">32 actions</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-slate-700 rounded-lg">
+                            <span class="text-sm">Average per Hour</span>
+                            <span class="font-bold text-blue-400" data-bind="metrics.avgPerHour">18.4</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-slate-700 rounded-lg">
+                            <span class="text-sm">Personal Record</span>
+                            <span class="font-bold text-game-warning" data-bind="metrics.personalRecord">47 actions</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-slate-700 rounded-lg">
+                            <span class="text-sm">Efficiency Score</span>
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-purple-400" data-bind="metrics.efficiency">87%</span>
+                                <div class="w-16 bg-slate-600 rounded-full h-2">
+                                    <div class="bg-purple-400 h-2 rounded-full" style="width: 87%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: SpeedAnalytics -->
+    </div>
+    <!-- @END_COMPONENT: GameDashboard -->
+
+    <!-- XP Gain Notifications Container -->
+    <div id="xpNotifications" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <!-- Level Up Modal -->
+    <div id="levelUpModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-slate-800 rounded-2xl p-8 text-center max-w-md mx-4 border border-game-primary animate-level-up">
+            <div class="text-6xl mb-4">🎉</div>
+            <h2 class="text-3xl font-bold text-game-primary mb-2">LEVEL UP!</h2>
+            <p class="text-lg mb-4">You've reached Level <span id="newLevel" class="text-game-success font-bold">13</span>!</p>
+            <button onclick="closeLevelUpModal()" class="bg-game-primary hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium transition-colors">
+                Awesome!
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // TODO: Implement business logic, API calls, and state management
+        
+        (function() {
+            // Game state - in production, this would come from a backend API
+            let gameState = {
+                currentXP: 247,
+                currentLevel: 12,
+                xpForNextLevel: 500,
+                totalXP: 2847,
+                todayActions: {
+                    dms: 23,
+                    looms: 7,
+                    xp: 209
+                }
+            };
+
+            // XP rewards configuration
+            const XP_REWARDS = {
+                dm: { min: 3, max: 5 },
+                loom: { min: 10, max: 20 }
+            };
+
+            // Level progression (XP required for each level)
+            const LEVEL_REQUIREMENTS = [0, 100, 250, 500, 750, 1000, 1500, 2000, 2750, 3500, 4500, 5750, 7000, 8500, 10000];
+
+            function getRandomXP(action) {
+                const reward = XP_REWARDS[action];
+                return Math.floor(Math.random() * (reward.max - reward.min + 1)) + reward.min;
+            }
+
+            function showXPGain(amount, element) {
+                const xpParticle = document.createElement('div');
+                xpParticle.className = 'xp-particle';
+                xpParticle.textContent = `+${amount} XP`;
+                
+                const rect = element.getBoundingClientRect();
+                xpParticle.style.left = (rect.left + rect.width / 2) + 'px';
+                xpParticle.style.top = (rect.top + rect.height / 2) + 'px';
+                
+                document.body.appendChild(xpParticle);
+                
+                setTimeout(() => {
+                    document.body.removeChild(xpParticle);
+                }, 800);
+            }
+
+            function showLevelUpModal(newLevel) {
+                document.getElementById('newLevel').textContent = newLevel;
+                document.getElementById('levelUpModal').classList.remove('hidden');
+            }
+
+            function updateProgressBar() {
+                const progressBar = document.querySelector('.bg-gradient-to-r.from-game-success');
+                if (progressBar) {
+                    const percentage = (gameState.currentXP / gameState.xpForNextLevel) * 100;
+                    progressBar.style.width = percentage + '%';
+                }
+            }
+
+            function handleAction(actionType, button) {
+                const xpGained = getRandomXP(actionType);
+                
+                // Add visual feedback
+                button.classList.add('animate-bounce-gentle');
+                setTimeout(() => button.classList.remove('animate-bounce-gentle'), 500);
+                
+                // Show XP gain
+                showXPGain(xpGained, button);
+                
+                // Update game state
+                gameState.currentXP += xpGained;
+                gameState.totalXP += xpGained;
+                gameState.todayActions.xp += xpGained;
+                
+                if (actionType === 'dm') {
+                    gameState.todayActions.dms++;
+                } else if (actionType === 'loom') {
+                    gameState.todayActions.looms++;
+                }
+                
+                // Check for level up
+                if (gameState.currentXP >= gameState.xpForNextLevel) {
+                    gameState.currentLevel++;
+                    gameState.currentXP -= gameState.xpForNextLevel;
+                    gameState.xpForNextLevel = LEVEL_REQUIREMENTS[gameState.currentLevel] || (gameState.xpForNextLevel * 1.5);
+                    
+                    showLevelUpModal(gameState.currentLevel);
+                }
+                
+                updateProgressBar();
+                
+                // In production, this would sync with backend
+                console.log('Action performed:', { actionType, xpGained, gameState });
+            }
+
+            // Event listeners
+            document.getElementById('dmButton').addEventListener('click', function() {
+                handleAction('dm', this);
+            });
+
+            document.getElementById('loomButton').addEventListener('click', function() {
+                handleAction('loom', this);
+            });
+
+            window.closeLevelUpModal = function() {
+                document.getElementById('levelUpModal').classList.add('hidden');
+            };
+
+            // Initialize charts
+            function initCharts() {
+                // Progress Chart
+                const progressCtx = document.getElementById('progressChart').getContext('2d');
+                new Chart(progressCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                        datasets: [{
+                            label: 'DMs Sent',
+                            data: [12, 19, 15, 25, 22, 18, 23],
+                            borderColor: '#60A5FA',
+                            backgroundColor: 'rgba(96, 165, 250, 0.1)',
+                            tension: 0.4
+                        }, {
+                            label: 'Looms Sent',
+                            data: [5, 8, 6, 12, 9, 7, 10],
+                            borderColor: '#A78BFA',
+                            backgroundColor: 'rgba(167, 139, 250, 0.1)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: { color: '#CBD5E1' }
+                            }
+                        },
+                        scales: {
+                            x: { 
+                                grid: { color: '#374151' },
+                                ticks: { color: '#9CA3AF' }
+                            },
+                            y: { 
+                                grid: { color: '#374151' },
+                                ticks: { color: '#9CA3AF' }
+                            }
+                        }
+                    }
+                });
+
+                // Speed Chart
+                const speedCtx = document.getElementById('speedChart').getContext('2d');
+                new Chart(speedCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['9AM', '10AM', '11AM', '12PM', '1PM', '2PM', '3PM', '4PM'],
+                        datasets: [{
+                            label: 'Actions per Hour',
+                            data: [8, 15, 22, 18, 25, 32, 28, 19],
+                            backgroundColor: 'rgba(6, 182, 212, 0.8)',
+                            borderColor: '#06B6D4',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: { color: '#CBD5E1' }
+                            }
+                        },
+                        scales: {
+                            x: { 
+                                grid: { color: '#374151' },
+                                ticks: { color: '#9CA3AF' }
+                            },
+                            y: { 
+                                grid: { color: '#374151' },
+                                ticks: { color: '#9CA3AF' }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Initialize everything when DOM is loaded
+            document.addEventListener('DOMContentLoaded', function() {
+                initCharts();
+                updateProgressBar();
+            });
+        })();
+    </script>
+</body>
+</html>
