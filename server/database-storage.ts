@@ -1,5 +1,5 @@
-import { drizzle } from 'drizzle-orm/neon-http';
-import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
 import { randomUUID } from 'crypto';
 import { 
   type GameState, 
@@ -32,8 +32,11 @@ export class DatabaseStorage {
       throw new Error("DATABASE_URL environment variable is required");
     }
     
-    const client = neon(process.env.DATABASE_URL!);
-    this.db = drizzle(client);
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL!,
+      ssl: { rejectUnauthorized: false },
+    });
+    this.db = drizzle(pool);
   }
 
   // Game State

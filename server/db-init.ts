@@ -1,6 +1,6 @@
-import { drizzle } from 'drizzle-orm/neon-http';
-import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import { sql as dsql } from 'drizzle-orm';
+import { Pool } from 'pg';
 
 export async function initializeDatabase() {
   if (!process.env.DATABASE_URL) {
@@ -9,8 +9,11 @@ export async function initializeDatabase() {
   }
 
   try {
-    const client = neon(process.env.DATABASE_URL);
-    const db = drizzle(client);
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+    });
+    const db = drizzle(pool);
 
     console.log('Initializing database tables...');
     
