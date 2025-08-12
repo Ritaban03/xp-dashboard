@@ -1,5 +1,6 @@
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import { neon } from '@neondatabase/serverless';
+import { sql as dsql } from 'drizzle-orm';
 
 export async function initializeDatabase() {
   if (!process.env.DATABASE_URL) {
@@ -8,15 +9,15 @@ export async function initializeDatabase() {
   }
 
   try {
-    const sql = neon(process.env.DATABASE_URL);
-    const db = drizzle(sql);
+    const client = neon(process.env.DATABASE_URL);
+    const db = drizzle(client);
 
     console.log('Initializing database tables...');
     
     // Create tables if they don't exist
-    await db.execute(sql`
+    await db.execute(dsql`
       CREATE TABLE IF NOT EXISTS game_state (
-        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        id VARCHAR PRIMARY KEY,
         user_id VARCHAR NOT NULL DEFAULT 'default',
         current_xp INTEGER NOT NULL DEFAULT 0,
         current_level INTEGER NOT NULL DEFAULT 1,
@@ -26,9 +27,9 @@ export async function initializeDatabase() {
       );
     `);
 
-    await db.execute(sql`
+    await db.execute(dsql`
       CREATE TABLE IF NOT EXISTS actions (
-        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        id VARCHAR PRIMARY KEY,
         user_id VARCHAR NOT NULL DEFAULT 'default',
         type TEXT NOT NULL,
         xp_value INTEGER NOT NULL,
@@ -37,9 +38,9 @@ export async function initializeDatabase() {
       );
     `);
 
-    await db.execute(sql`
+    await db.execute(dsql`
       CREATE TABLE IF NOT EXISTS todos (
-        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        id VARCHAR PRIMARY KEY,
         user_id VARCHAR NOT NULL DEFAULT 'default',
         title TEXT NOT NULL,
         xp_value INTEGER NOT NULL,
@@ -49,9 +50,9 @@ export async function initializeDatabase() {
       );
     `);
 
-    await db.execute(sql`
+    await db.execute(dsql`
       CREATE TABLE IF NOT EXISTS challenges (
-        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        id VARCHAR PRIMARY KEY,
         user_id VARCHAR NOT NULL DEFAULT 'default',
         type TEXT NOT NULL,
         target INTEGER NOT NULL,
@@ -68,9 +69,9 @@ export async function initializeDatabase() {
       );
     `);
 
-    await db.execute(sql`
+    await db.execute(dsql`
       CREATE TABLE IF NOT EXISTS achievements (
-        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        id VARCHAR PRIMARY KEY,
         user_id VARCHAR NOT NULL DEFAULT 'default',
         type TEXT NOT NULL,
         title TEXT NOT NULL,
@@ -79,9 +80,9 @@ export async function initializeDatabase() {
       );
     `);
 
-    await db.execute(sql`
+    await db.execute(dsql`
       CREATE TABLE IF NOT EXISTS pomodoro_sessions (
-        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        id VARCHAR PRIMARY KEY,
         user_id VARCHAR NOT NULL DEFAULT 'default',
         challenge_type TEXT,
         start_time TIMESTAMP DEFAULT NOW(),
