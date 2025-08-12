@@ -1,6 +1,7 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { sql as dsql } from 'drizzle-orm';
-import { Pool } from 'pg';
+import pg from 'pg';
+const { Pool } = pg;
 
 export async function initializeDatabase() {
   if (!process.env.DATABASE_URL) {
