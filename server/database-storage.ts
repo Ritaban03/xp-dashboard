@@ -1,5 +1,6 @@
-import { drizzle } from 'drizzle-orm/neon-serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
 import { neon } from '@neondatabase/serverless';
+import { randomUUID } from 'crypto';
 import { 
   type GameState, 
   type InsertGameState, 
@@ -31,8 +32,8 @@ export class DatabaseStorage {
       throw new Error("DATABASE_URL environment variable is required");
     }
     
-    const sql = neon(process.env.DATABASE_URL!);
-    this.db = drizzle(sql);
+    const client = neon(process.env.DATABASE_URL!);
+    this.db = drizzle(client);
   }
 
   // Game State
@@ -44,42 +45,58 @@ export class DatabaseStorage {
       .limit(1);
 
     if (result.length === 0) {
-      // Create default game state if none exists
-      const defaultState: InsertGameState = {
+      const row: GameState = {
+        id: randomUUID(),
         userId,
         currentXP: 0,
         currentLevel: 1,
         todayXP: 0,
         lastResetDate: new Date().toISOString().split('T')[0],
+        createdAt: new Date(),
       };
-      return this.updateGameState(defaultState, userId);
+      await this.db.insert(gameState).values(row);
+      return row;
     }
 
     return result[0];
   }
 
   async updateGameState(gameStateUpdate: Partial<GameState>, userId = "default"): Promise<GameState> {
-    const existing = await this.getGameState(userId);
-    
-    // Calculate new level if XP changed
-    let newLevel = existing.currentLevel;
-    if (gameStateUpdate.currentXP !== undefined) {
-      newLevel = this.calculateLevel(gameStateUpdate.currentXP);
-    }
+    const existingResult = await this.db
+      .select()
+      .from(gameState)
+      .where(eq(gameState.userId, userId))
+      .limit(1);
 
-    // Check if we need to reset daily XP
     const currentDate = new Date().toISOString().split('T')[0];
-    let todayXP = existing.todayXP;
-    if (gameStateUpdate.lastResetDate !== currentDate) {
+
+    const existing: GameState = existingResult[0] ?? {
+      id: randomUUID(),
+      userId,
+      currentXP: 0,
+      currentLevel: 1,
+      todayXP: 0,
+      lastResetDate: currentDate,
+      createdAt: new Date(),
+    };
+
+    const currentXP = gameStateUpdate.currentXP ?? existing.currentXP;
+    const newLevel = this.calculateLevel(currentXP);
+
+    let todayXP = gameStateUpdate.todayXP ?? existing.todayXP;
+    let lastResetDate = existing.lastResetDate;
+    if (existing.lastResetDate !== currentDate) {
       todayXP = 0;
+      lastResetDate = currentDate;
     }
 
-    const updatedState = {
+    const updatedState: GameState = {
       ...existing,
       ...gameStateUpdate,
+      currentXP,
       currentLevel: newLevel,
-      todayXP: gameStateUpdate.todayXP ?? todayXP,
-      lastResetDate: currentDate,
+      todayXP,
+      lastResetDate,
     };
 
     await this.db
@@ -96,7 +113,7 @@ export class DatabaseStorage {
   // Actions
   async createAction(action: InsertAction): Promise<Action> {
     const newAction: Action = {
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       userId: action.userId || "default",
       type: action.type,
       xpValue: action.xpValue,
@@ -149,7 +166,7 @@ export class DatabaseStorage {
   // Todos
   async createTodo(todo: InsertTodo): Promise<Todo> {
     const newTodo: Todo = {
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       userId: todo.userId || "default",
       title: todo.title,
       xpValue: todo.xpValue,
@@ -197,7 +214,7 @@ export class DatabaseStorage {
   // Challenges
   async createChallenge(challenge: InsertChallenge): Promise<Challenge> {
     const newChallenge: Challenge = {
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       userId: challenge.userId || "default",
       type: challenge.type,
       target: challenge.target,
@@ -250,7 +267,7 @@ export class DatabaseStorage {
   // Achievements
   async createAchievement(achievement: InsertAchievement): Promise<Achievement> {
     const newAchievement: Achievement = {
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       userId: achievement.userId || "default",
       type: achievement.type,
       title: achievement.title,
@@ -273,7 +290,7 @@ export class DatabaseStorage {
   // Pomodoro Sessions
   async createPomodoroSession(session: InsertPomodoroSession): Promise<PomodoroSession> {
     const newSession: PomodoroSession = {
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       userId: session.userId || "default",
       challengeType: session.challengeType || null,
       startTime: new Date(),
