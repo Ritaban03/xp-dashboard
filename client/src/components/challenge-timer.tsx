@@ -3,99 +3,126 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Timer, Play, Pause, BarChart3, Shuffle, Zap } from "lucide-react";
-import { type Challenge, CHALLENGE_TYPES } from "@shared/schema";
+import { Timer, Play, Pause, BarChart3, Shuffle, Zap, Target, Clock } from "lucide-react";
+
+interface PomodoroSession {
+  id: string;
+  challengeType: string;
+  startTime: string;
+  duration: number;
+  actionsCompleted: number;
+  xpEarned: number;
+  bonusXp: number;
+  completed: boolean;
+}
+
+const CHALLENGE_CONFIGS = {
+  dm_sprint: {
+    label: "DM Sprint",
+    description: "Send as many DMs as possible in the time limit",
+    durations: [5, 15, 25, 45],
+    actionType: "dm",
+    color: "bg-blue-600 hover:bg-blue-700"
+  },
+  loom_marathon: {
+    label: "Loom Marathon", 
+    description: "Record as many Loom videos as possible",
+    durations: [5, 15, 25, 45],
+    actionType: "loom",
+    color: "bg-purple-600 hover:bg-purple-700"
+  }
+};
 
 export default function ChallengeTimer() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [activeSession, setActiveSession] = useState<PomodoroSession | null>(null);
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [sessionActions, setSessionActions] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
-  const { data: challenge } = useQuery({
-    queryKey: ["/api/challenges", "active"],
-    queryFn: async () => {
-      const response = await fetch("/api/challenges/active?userId=default");
-      const data = await response.json();
-      return data;
-    },
-    refetchInterval: 1000, // Refetch every second to keep timer updated
-  });
+  // Get user ID from localStorage or use default
+  const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') || 'default' : 'default';
 
-  const { data: todayActions = [] } = useQuery({
-    queryKey: ["/api/actions", "today"],
+  const { data: gameState } = useQuery({
+    queryKey: ["/api/game-state", userId],
     queryFn: async () => {
-      const response = await fetch("/api/actions/today?userId=default");
+      const response = await fetch(`/api/game-state?userId=${userId}`);
       return response.json();
     },
   });
 
-  const createChallengeMutation = useMutation({
-    mutationFn: async (challengeType: keyof typeof CHALLENGE_TYPES) => {
-      const challengeConfig = CHALLENGE_TYPES[challengeType];
-      const targets = { dm_sprint: 25, loom_marathon: 10, call_blitz: 8, content_storm: 5, system_builder: 3, sales_domination: 2, productivity_beast: 30 };
-      const timeLimits = { dm_sprint: 3600, loom_marathon: 7200, call_blitz: 5400, content_storm: 10800, system_builder: 14400, sales_domination: 21600, productivity_beast: 1800 };
-      const bonusXP = { dm_sprint: 100, loom_marathon: 250, call_blitz: 200, content_storm: 150, system_builder: 300, sales_domination: 400, productivity_beast: 500 };
+  const { data: pomodoroRecords = [] } = useQuery({
+    queryKey: ["/api/pomodoro/records", userId],
+    queryFn: async () => {
+      const response = await fetch(`/api/pomodoro/records?userId=${userId}`);
+      return response.json();
+    },
+  });
+
+  // Start a new Pomodoro session
+  const startSessionMutation = useMutation({
+    mutationFn: async ({ challengeType, duration }: { challengeType: string; duration: number }) => {
+      const response = await apiRequest("POST", "/api/pomodoro/start", {
+        userId,
+        challengeType,
+        duration: duration * 60, // Convert minutes to seconds
+        actionsCompleted: 0
+      });
+      return response.json();
+    },
+    onSuccess: (session: PomodoroSession) => {
+      setActiveSession(session);
+      setTimeRemaining(session.duration);
+      setSessionActions(0);
+      setIsPaused(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/pomodoro/records", userId] });
+      toast({
+        title: "Session Started! ⏰",
+        description: `Your ${CHALLENGE_CONFIGS[session.challengeType as keyof typeof CHALLENGE_CONFIGS]?.label} session has begun!`,
+      });
+    },
+  });
+
+  // End the current session
+  const endSessionMutation = useMutation({
+    mutationFn: async ({ sessionId, actionsCompleted, completed }: { sessionId: string; actionsCompleted: number; completed: boolean }) => {
+      const response = await apiRequest("POST", `/api/pomodoro/${sessionId}/end`, {
+        actionsCompleted,
+        completed
+      });
+      return response.json();
+    },
+    onSuccess: (session: PomodoroSession) => {
+      setActiveSession(null);
+      setTimeRemaining(0);
+      setSessionActions(0);
+      setIsPaused(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/game-state", userId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pomodoro/records", userId] });
       
-      const response = await apiRequest("POST", "/api/challenges", {
-        userId: "default",
-        type: challengeType,
-        target: targets[challengeType],
-        current: 0,
-        timeLimit: timeLimits[challengeType],
-        timeRemaining: timeLimits[challengeType],
-        bonusXP: bonusXP[challengeType],
-        speedMultiplier: 100,
-      });
-      return response.json();
-    },
-    onSuccess: (_, challengeType) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/challenges", "active"] });
-      const challengeConfig = CHALLENGE_TYPES[challengeType];
+      const totalXP = session.xpEarned + session.bonusXp;
       toast({
-        title: "Challenge Created! 🚀",
-        description: `${challengeConfig.label} is ready to start!`,
+        title: "Session Complete! 🎉",
+        description: `You earned ${totalXP} XP! (${session.xpEarned} base + ${session.bonusXp} bonus)`,
       });
     },
   });
 
-  const startChallengeMutation = useMutation({
-    mutationFn: async (challengeId: string) => {
-      const response = await apiRequest("POST", `/api/challenges/${challengeId}/start`);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/challenges", "active"] });
-      toast({
-        title: "Challenge Started! ⏰",
-        description: "The timer is now running. Good luck!",
-      });
-    },
-  });
-
-  const stopChallengeMutation = useMutation({
-    mutationFn: async (challengeId: string) => {
-      const response = await apiRequest("POST", `/api/challenges/${challengeId}/stop`);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/challenges", "active"] });
-      toast({
-        title: "Challenge Paused ⏸️",
-        description: "Timer has been paused.",
-      });
-    },
-  });
-
-  // Update local timer state
+  // Timer countdown effect
   useEffect(() => {
-    if (challenge?.active && challenge?.timeRemaining > 0) {
+    if (activeSession && timeRemaining > 0 && !isPaused) {
       const interval = setInterval(() => {
         setTimeRemaining(prev => {
           if (prev <= 1) {
-            toast({
-              title: "Challenge Complete! 🎉",
-              description: "Time's up! Check your results.",
-            });
+            // Auto-complete session when time runs out
+            if (activeSession) {
+              endSessionMutation.mutate({
+                sessionId: activeSession.id,
+                actionsCompleted: sessionActions,
+                completed: true
+              });
+            }
             return 0;
           }
           return prev - 1;
@@ -104,83 +131,107 @@ export default function ChallengeTimer() {
 
       return () => clearInterval(interval);
     }
-  }, [challenge?.active, toast]);
+  }, [activeSession, timeRemaining, isPaused, sessionActions, endSessionMutation]);
 
-  // Sync with server data
-  useEffect(() => {
-    if (challenge?.timeRemaining) {
-      setTimeRemaining(challenge.timeRemaining);
-    }
-  }, [challenge?.timeRemaining]);
-
+  // Format time display
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  const getCurrentProgress = (): number => {
-    if (!challenge) return 0;
-    const challengeConfig = CHALLENGE_TYPES[challenge.type as keyof typeof CHALLENGE_TYPES];
-    if (!challengeConfig) return 0;
-    
-    if (challenge.type === 'productivity_beast') {
-      return todayActions.length; // Count all actions for productivity beast
+  // Handle action button clicks during session
+  const handleActionClick = (actionType: string) => {
+    if (activeSession && !isPaused) {
+      setSessionActions(prev => prev + 1);
+      
+      // Create the action in the database (this will increment XP)
+      apiRequest("POST", "/api/actions", {
+        userId,
+        type: actionType,
+        xpValue: 10 // Base XP for each action
+      }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/game-state", userId] });
+      });
     }
+  };
+
+  // Get recent session stats for the chart
+  const getRecentSessions = (challengeType: string) => {
+    return pomodoroRecords
+      .filter((record: PomodoroSession) => record.challengeType === challengeType && record.completed)
+      .slice(0, 5)
+      .reverse();
+  };
+
+  if (activeSession) {
+    const challengeConfig = CHALLENGE_CONFIGS[activeSession.challengeType as keyof typeof CHALLENGE_CONFIGS];
     
-    const relevantActions = todayActions.filter((action: any) => action.type === challengeConfig.actionType);
-    return relevantActions.length;
-  };
-
-  const currentProgress = getCurrentProgress();
-  const progressPercent = challenge ? (currentProgress / challenge.target) * 100 : 0;
-
-  const getRandomChallenge = (): keyof typeof CHALLENGE_TYPES => {
-    const challengeTypes = Object.keys(CHALLENGE_TYPES) as (keyof typeof CHALLENGE_TYPES)[];
-    return challengeTypes[Math.floor(Math.random() * challengeTypes.length)];
-  };
-
-  if (!challenge) {
     return (
-      <div className="bg-card-dark rounded-xl p-6 border border-slate-700">
+      <div className="bg-card-dark rounded-xl p-6 border border-slate-700 animate-pulse-glow">
         <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
           <Timer className="text-orange-500" />
-          Challenge Center
+          Active Session: {challengeConfig?.label}
         </h2>
         
         <div className="text-center">
-          <p className="text-slate-400 mb-4">No active challenge. Ready to push your limits?</p>
+          <p className="text-sm text-slate-400 mb-4">{challengeConfig?.description}</p>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Timer Display */}
+          <div className="bg-slate-800 rounded-lg p-4 mb-4">
+            <div className="text-4xl font-bold text-orange-500">
+              {formatTime(timeRemaining)}
+            </div>
+            <div className="text-sm text-slate-400">Time Remaining</div>
+          </div>
+          
+          {/* Session Progress */}
+          <div className="mb-4">
+            <div className="flex justify-between text-sm mb-2">
+              <span>Actions Completed</span>
+              <span className="text-green-400 font-bold">{sessionActions}</span>
+            </div>
+            <div className="w-full bg-slate-700 rounded-full h-3">
+              <div 
+                className="bg-gradient-to-r from-green-500 to-blue-500 h-full rounded-full transition-all duration-300"
+                style={{ width: `${Math.min((sessionActions / 10) * 100, 100)}%` }}
+              ></div>
+            </div>
+          </div>
+          
+          {/* Action Buttons */}
+          <div className="mb-4">
+            <p className="text-sm text-slate-400 mb-2">Click to record actions:</p>
+            <div className="flex gap-2 justify-center">
+              <Button 
+                onClick={() => handleActionClick(challengeConfig?.actionType || 'dm')}
+                className="bg-green-600 hover:bg-green-700"
+                size="sm"
+              >
+                +1 {challengeConfig?.actionType?.toUpperCase()}
+              </Button>
+            </div>
+          </div>
+          
+          {/* Session Controls */}
+          <div className="flex gap-2">
             <Button 
-              onClick={() => createChallengeMutation.mutate('dm_sprint')}
-              disabled={createChallengeMutation.isPending}
-              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => setIsPaused(!isPaused)}
+              className="flex-1 bg-yellow-600 hover:bg-yellow-700"
             >
-              DM Sprint
+              {isPaused ? <Play className="w-4 h-4 mr-2" /> : <Pause className="w-4 h-4 mr-2" />}
+              {isPaused ? "Resume" : "Pause"}
             </Button>
             <Button 
-              onClick={() => createChallengeMutation.mutate('loom_marathon')}
-              disabled={createChallengeMutation.isPending}
-              className="bg-purple-600 hover:bg-purple-700"
+              onClick={() => endSessionMutation.mutate({
+                sessionId: activeSession.id,
+                actionsCompleted: sessionActions,
+                completed: true
+              })}
+              className="flex-1 bg-red-600 hover:bg-red-700"
+              disabled={endSessionMutation.isPending}
             >
-              Loom Marathon
-            </Button>
-            <Button 
-              onClick={() => createChallengeMutation.mutate('productivity_beast')}
-              disabled={createChallengeMutation.isPending}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              <Zap className="w-4 h-4 mr-1" />
-              Beast Mode
-            </Button>
-            <Button 
-              onClick={() => createChallengeMutation.mutate(getRandomChallenge())}
-              disabled={createChallengeMutation.isPending}
-              className="bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500"
-            >
-              <Shuffle className="w-4 h-4 mr-1" />
-              Random
+              {endSessionMutation.isPending ? "Ending..." : "End Session"}
             </Button>
           </div>
         </div>
@@ -189,79 +240,65 @@ export default function ChallengeTimer() {
   }
 
   return (
-    <div className="bg-card-dark rounded-xl p-6 border border-slate-700 animate-pulse-glow">
+    <div className="bg-card-dark rounded-xl p-6 border border-slate-700">
       <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
         <Timer className="text-orange-500" />
-        Active Challenge
+        Focus Sessions
       </h2>
       
       <div className="text-center">
-        <h3 className="font-bold text-lg mb-2">{CHALLENGE_TYPES[challenge.type as keyof typeof CHALLENGE_TYPES]?.label || challenge.type}</h3>
-        <p className="text-sm text-slate-400 mb-4">{CHALLENGE_TYPES[challenge.type as keyof typeof CHALLENGE_TYPES]?.description || "Complete the challenge!"}</p>
+        <p className="text-slate-400 mb-6">Choose your challenge and duration to start a focused work session</p>
         
-        {/* Bonus XP Info */}
-        <div className="bg-gradient-to-r from-yellow-900/30 to-orange-900/30 border border-yellow-700/50 rounded-lg p-3 mb-4">
-          <div className="flex items-center justify-center gap-2">
-            <Zap className="w-4 h-4 text-yellow-500" />
-            <span className="text-sm font-semibold text-yellow-400">
-              Bonus XP: +{challenge.bonusXP} • Speed Multiplier: {(challenge.speedMultiplier / 100).toFixed(1)}x
-            </span>
-          </div>
-          <div className="text-xs text-yellow-300 mt-1">
-            Complete faster for higher XP rewards!
-          </div>
-        </div>
-        
-        {/* Timer Display */}
-        <div className="bg-slate-800 rounded-lg p-4 mb-4">
-          <div className="text-3xl font-bold text-orange-500">
-            {formatTime(timeRemaining)}
-          </div>
-          <div className="text-sm text-slate-400">Time Remaining</div>
-        </div>
-        
-        {/* Challenge Progress */}
-        <div className="mb-4">
-          <div className="flex justify-between text-sm mb-2">
-            <span>Progress</span>
-            <span>{currentProgress} / {challenge.target} DMs</span>
-          </div>
-          <div className="w-full bg-slate-700 rounded-full h-3">
-            <div 
-              className="bg-gradient-to-r from-orange-500 to-red-500 h-full rounded-full transition-all duration-300"
-              style={{ width: `${Math.min(progressPercent, 100)}%` }}
-            ></div>
-          </div>
-        </div>
-        
-        <div className="flex gap-2">
-          {!challenge.active ? (
-            <Button 
-              className="flex-1 bg-green-600 hover:bg-green-700 transition-colors"
-              onClick={() => startChallengeMutation.mutate(challenge.id)}
-              disabled={startChallengeMutation.isPending}
-            >
-              <Play className="w-4 h-4 mr-2" />
-              {startChallengeMutation.isPending ? "Starting..." : "Start"}
-            </Button>
-          ) : (
-            <Button 
-              className="flex-1 bg-red-600 hover:bg-red-700 transition-colors"
-              onClick={() => stopChallengeMutation.mutate(challenge.id)}
-              disabled={stopChallengeMutation.isPending}
-            >
-              <Pause className="w-4 h-4 mr-2" />
-              {stopChallengeMutation.isPending ? "Stopping..." : "Pause"}
-            </Button>
-          )}
+        {/* Challenge Types */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          {Object.entries(CHALLENGE_CONFIGS).map(([key, config]) => (
+            <div key={key} className="space-y-3">
+              <h3 className="font-semibold text-lg">{config.label}</h3>
+              <p className="text-sm text-slate-400">{config.description}</p>
+              
+              {/* Duration Options */}
+              <div className="grid grid-cols-2 gap-2">
+                {config.durations.map((duration) => (
+                  <Button
+                    key={duration}
+                    onClick={() => startSessionMutation.mutate({ challengeType: key, duration })}
+                    disabled={startSessionMutation.isPending}
+                    className={`${config.color} text-sm`}
+                    size="sm"
+                  >
+                    <Clock className="w-3 h-3 mr-1" />
+                    {duration}m
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
 
-        {challenge.completed && (
-          <div className="mt-4 p-3 bg-green-900/30 border border-green-700/50 rounded-lg">
-            <p className="text-green-400 font-semibold">🎉 Challenge Complete!</p>
-            <p className="text-sm text-green-300">You reached {currentProgress} DMs!</p>
+        {/* Recent Performance Chart */}
+        <div className="mt-6">
+          <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <BarChart3 className="w-4 h-4" />
+            Recent Performance
+          </h3>
+          
+          <div className="grid grid-cols-2 gap-4">
+            {Object.entries(CHALLENGE_CONFIGS).map(([key, config]) => {
+              const recentSessions = getRecentSessions(key);
+              const avgActions = recentSessions.length > 0 
+                ? Math.round(recentSessions.reduce((sum: number, session: PomodoroSession) => sum + session.actionsCompleted, 0) / recentSessions.length)
+                : 0;
+              
+              return (
+                <div key={key} className="bg-slate-800 rounded-lg p-3">
+                  <div className="text-sm font-medium text-slate-300">{config.label}</div>
+                  <div className="text-lg font-bold text-green-400">{avgActions}</div>
+                  <div className="text-xs text-slate-400">avg actions/session</div>
+                </div>
+              );
+            })}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -7,6 +7,8 @@ import AnalyticsDashboard from "@/components/analytics-dashboard";
 import UserProfile from "@/components/user-profile";
 import LeagueRequirements from "@/components/league-requirements";
 import StickyTimer from "@/components/sticky-timer";
+import Achievements from "@/components/achievements";
+import UserIdSetup from "@/components/user-id-setup";
 import { Star, Flame, Gamepad2 } from "lucide-react";
 
 export default function Dashboard() {
@@ -40,6 +42,11 @@ export default function Dashboard() {
           
           {/* User Profile Section */}
           <UserProfile gameState={gameState} />
+          
+          {/* User ID Setup */}
+          <div className="mt-4">
+            <UserIdSetup />
+          </div>
         </div>
 
         {/* Main Dashboard Grid */}
@@ -74,6 +81,11 @@ export default function Dashboard() {
         {/* League Requirements Section */}
         <div className="mt-8">
           <LeagueRequirements />
+        </div>
+
+        {/* Achievements Section */}
+        <div className="mt-8">
+          <Achievements />
         </div>
 
         {/* Sticky Timer */}

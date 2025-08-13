@@ -126,6 +126,22 @@ export class DatabaseStorage {
     };
 
     await this.db.insert(actions).values(newAction);
+
+    // Update game state XP totals
+    const currentState = await this.getGameState(newAction.userId);
+    await this.updateGameState({
+      currentXP: currentState.currentXP + newAction.xpValue,
+      todayXP: currentState.todayXP + newAction.xpValue,
+    }, newAction.userId);
+
+    // If there is an active sprint challenge for this action type, increment progress
+    const activeChallenge = await this.getActiveChallenge(newAction.userId);
+    if (activeChallenge && activeChallenge.type === `${newAction.type}_sprint`) {
+      await this.updateChallenge(activeChallenge.id, {
+        current: activeChallenge.current + 1,
+      });
+    }
+
     return newAction;
   }
 
