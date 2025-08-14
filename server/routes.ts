@@ -5,6 +5,7 @@ import {
   insertActionSchema, 
   insertTodoSchema, 
   insertChallengeSchema,
+  insertPomodoroSessionSchema,
   ACTION_XP_VALUES,
   type ActionType 
 } from "@shared/schema";
@@ -193,10 +194,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Start Pomodoro session
   app.post("/api/pomodoro/start", async (req, res) => {
     try {
-      const session = await storage.createPomodoroSession(req.body);
+      const validated = insertPomodoroSessionSchema.parse(req.body);
+      const session = await storage.createPomodoroSession(validated);
       res.json(session);
     } catch (error) {
-      res.status(500).json({ message: "Failed to start pomodoro session" });
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid session data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to start pomodoro session" });
+      }
     }
   });
 

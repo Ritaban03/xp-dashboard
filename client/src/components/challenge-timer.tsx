@@ -107,6 +107,14 @@ export default function ChallengeTimer() {
         description: `You earned ${totalXP} XP! (${session.xpEarned} base + ${session.bonusXp} bonus)`,
       });
     },
+    onError: (error) => {
+      console.error("Failed to end session:", error);
+      toast({
+        title: "Error",
+        description: "Failed to end session. Please try again.",
+        variant: "destructive"
+      });
+    }
   });
 
   // Timer countdown effect
@@ -149,9 +157,13 @@ export default function ChallengeTimer() {
       apiRequest("POST", "/api/actions", {
         userId,
         type: actionType,
-        xpValue: 10 // Base XP for each action
+        // Remove xpValue - let the server set it based on action type
       }).then(() => {
         queryClient.invalidateQueries({ queryKey: ["/api/game-state", userId] });
+      }).catch((error) => {
+        console.error("Failed to create action:", error);
+        // Revert the session action count if action creation failed
+        setSessionActions(prev => prev - 1);
       });
     }
   };
